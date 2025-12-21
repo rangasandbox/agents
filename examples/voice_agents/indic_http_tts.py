@@ -13,19 +13,6 @@ from livekit.agents.utils.codecs import AudioStreamDecoder
 
 logger = logging.getLogger("indic-http-tts")
 
-def _infer_format_from_content_type(content_type: str | None) -> str | None:
-    if not content_type:
-        return None
-
-    # content-type may look like audio/wav or audio/mpeg
-    subtype = content_type.split("/")[-1]
-    if "wav" in subtype:
-        return "wav"
-    if "mpeg" in subtype or "mp3" in subtype:
-        return "mp3"
-    return None
-
-
 @dataclass
 class _RequestConfig:
     url: str
@@ -65,21 +52,61 @@ class _IndicChunkedStream(tts.ChunkedStream):
                     if resp.status >= 400:
                         raise APIStatusError(resp.status, await resp.text())
 
-                    # Treat response as a complete WAV payload (server returns audio/wav).
-                    data = await resp.read()
-                    if len(data) < 44 or data[0:4] != b"RIFF" or data[8:12] != b"WAVE":
+                    # Stream the WAV response incrementally instead of buffering it all.
+                    buffer = bytearray()
+                    initialized = False
+                    total_bytes = 0
+                    request_id = resp.headers.get("x-request-id", utils.shortuuid())
+
+                    async for chunk in resp.content.iter_chunked(4096):
+                        if not chunk:
+                            continue
+
+                        total_bytes += len(chunk)
+
+                        if not initialized:
+                            buffer.extend(chunk)
+
+                            # wait until we have the full WAV header before initializing
+                            if len(buffer) < 44:
+                                continue
+
+                            if buffer[0:4] != b"RIFF" or buffer[8:12] != b"WAVE":
+                                raise APIError("indic_http_tts returned non-wav data or empty body")
+
+                            output_emitter.initialize(
+                                request_id=request_id,
+                                sample_rate=self._cfg.sample_rate,
+                                num_channels=self._cfg.num_channels,
+                                mime_type="audio/wav",
+                            )
+                            initialized = True
+                            output_emitter.push(bytes(buffer))
+                            logger.info(
+                                "indic_http_tts stream started",
+                                extra={"request_id": request_id, "first_chunk_bytes": len(buffer)},
+                            )
+                            buffer.clear()
+                            continue
+
+                        output_emitter.push(chunk)
+                        logger.info(
+                            "indic_http_tts chunk",
+                            extra={
+                                "request_id": request_id,
+                                "chunk_bytes": len(chunk),
+                                "total_bytes": total_bytes,
+                            },
+                        )
+
+                    if not initialized:
                         raise APIError("indic_http_tts returned non-wav data or empty body")
 
-                    output_emitter.initialize(
-                        request_id=resp.headers.get("x-request-id", utils.shortuuid()),
-                        sample_rate=self._cfg.sample_rate,
-                        num_channels=self._cfg.num_channels,
-                        mime_type="audio/wav",
-                    )
-
-                    # send as a single segment
-                    output_emitter.push(data)
                     output_emitter.flush()
+                    logger.info(
+                        "indic_http_tts stream completed",
+                        extra={"request_id": request_id, "total_bytes": total_bytes},
+                    )
 
             except asyncio.TimeoutError as e:
                 raise APIError("indic_http_tts timeout") from e
