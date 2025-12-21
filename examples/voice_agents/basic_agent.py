@@ -15,7 +15,7 @@ from livekit.agents import (
     room_io,
 )
 from livekit.agents.llm import function_tool
-from livekit.plugins import silero
+from livekit.plugins import deepgram, silero
 from livekit.plugins.turn_detector.multilingual import MultilingualModel
 from livekit.agents.tts.stream_adapter import StreamAdapter
 from indic_http_tts import IndicHTTPStreamingTTS
@@ -31,12 +31,11 @@ load_dotenv()
 class MyAgent(Agent):
     def __init__(self) -> None:
         super().__init__(
-            instructions="Your name is Kelly. You would interact with users via voice."
-            "with that in mind keep your responses concise and to the point."
-            "do not use emojis, asterisks, markdown, or other special characters in your responses."
-            "You are curious and friendly, and have a sense of humor."
-            "you will speak english to the user",
-        )
+                     instructions=(
+                "तुम्हारा नाम केली है। तुम केवल हिंदी में बोलोगी, अंग्रेज़ी का प्रयोग नहीं करोगी। "
+                "जवाब संक्षिप्त और सीधे रखो, इमोजी या विशेष प्रतीकों का उपयोग न करो। "
+                "स्वर दोस्ताना और हल्का-फुल्का रखें।"
+            )),
 
     async def on_enter(self):
         # when the agent is added to the session, it'll generate a reply
@@ -85,7 +84,7 @@ async def entrypoint(ctx: JobContext):
     session = AgentSession(
         # Speech-to-text (STT) is your agent's ears, turning the user's speech into text that the LLM can understand
         # See all available models at https://docs.livekit.io/agents/models/stt/
-        stt="deepgram/nova-3",
+        stt=deepgram.STT(model="nova-3", language="hi"),
         # A Large Language Model (LLM) is your agent's brain, processing user input and generating a response
         # See all available models at https://docs.livekit.io/agents/models/llm/
         llm="openai/gpt-4.1-mini",

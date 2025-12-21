@@ -5,11 +5,13 @@ from dataclasses import dataclass
 from typing import Any
 
 import aiohttp
+import logging
 
 from livekit.agents import APIConnectOptions, APIError, APIStatusError, tts, utils
 from livekit.agents.types import DEFAULT_API_CONNECT_OPTIONS
 from livekit.agents.utils.codecs import AudioStreamDecoder
 
+logger = logging.getLogger("indic-http-tts")
 
 def _infer_format_from_content_type(content_type: str | None) -> str | None:
     if not content_type:
@@ -51,6 +53,11 @@ class _IndicChunkedStream(tts.ChunkedStream):
 
         headers: dict[str, Any] = {}
         payload = {"voice": self._cfg.voice, "text": self._input_text, "stream": True}
+
+        logger.info(
+            "sending TTS request",
+            extra={"voice": self._cfg.voice, "text": self._input_text, "url": self._cfg.url},
+        )
 
         async with aiohttp.ClientSession(timeout=timeout) as session:
             try:
