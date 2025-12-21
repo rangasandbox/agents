@@ -1,0 +1,1 @@
+UV_CACHE_DIR=$(pwd)/.uv_cache uv run python examples/voice_agents/basic_agent.py console
