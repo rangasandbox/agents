@@ -129,13 +129,20 @@ class StreamAdapterWrapper(SynthesizeStream):
                     if not (text := ev.token.strip()):
                         continue
 
+                    # Print TTS input in purple for quick debugging
+                    print(f"\033[35mTTS input: {text}\033[0m")
+
                     async with self._tts._wrapped_tts.synthesize(
                         text, conn_options=self._wrapped_tts_conn_options
                     ) as tts_stream:
                         async for audio in tts_stream:
-                            output_emitter.push(audio.frame.data.tobytes())
+                            frame = audio.frame
+                            chunk = frame.data.tobytes()
+                            output_emitter.push(chunk)
                             duration += audio.frame.duration
                         output_emitter.flush()
+                        # Add a short pause after each utterance to avoid rushed playback without corrupting WAV data.
+                        await asyncio.sleep(0.2)
             finally:
                 # Ensure downstream decoders are closed even on errors/timeouts
                 try:
