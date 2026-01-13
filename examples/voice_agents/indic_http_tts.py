@@ -35,8 +35,11 @@ class _IndicChunkedStream(tts.ChunkedStream):
         self._cfg = cfg
 
     async def _run(self, output_emitter: tts.AudioEmitter) -> None:
-        timeout_val = self._conn_options.timeout if self._conn_options.timeout is not None else 60
-        timeout = aiohttp.ClientTimeout(total=timeout_val, sock_connect=timeout_val)
+        # Give generous room for long responses; avoid per-read timeouts mid-stream.
+        timeout_val = self._conn_options.timeout if self._conn_options.timeout is not None else 300
+        timeout = aiohttp.ClientTimeout(
+            total=None, sock_connect=timeout_val, sock_read=timeout_val
+        )
 
         headers: dict[str, Any] = {}
         payload = {"voice": self._cfg.voice, "text": self._input_text, "stream": True}
@@ -109,9 +112,17 @@ class _IndicChunkedStream(tts.ChunkedStream):
                     )
 
             except asyncio.TimeoutError as e:
-                raise APIError("indic_http_tts timeout") from e
+                # Treat as non-retryable so we don't spin retries on long streams
+                raise APIError("indic_http_tts timeout", retryable=False) from e
             except aiohttp.ClientError as e:
                 raise APIError(f"indic_http_tts network error: {e}") from e
+            finally:
+                # Explicitly signal no more audio to avoid downstream decoder writes after close
+                try:
+                    output_emitter.end_input()
+                except RuntimeError:
+                    # Emitter never started (e.g., connection failure before WAV header)
+                    pass
 
 
 class IndicHTTPStreamingTTS(tts.TTS):
@@ -125,8 +136,12 @@ class IndicHTTPStreamingTTS(tts.TTS):
     def __init__(
         self,
         *,
+        
+        
+        
+        
         url: str = "http://tts.sub200.dev/indic-19/v1/tts/generate",
-        voice: str = "Kishan",
+        voice: str = "Priya",
         sample_rate: int = 24000,
         num_channels: int = 1,
     ) -> None:

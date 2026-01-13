@@ -120,21 +120,28 @@ class StreamAdapterWrapper(SynthesizeStream):
             from ..voice.io import TimedString
 
             duration = 0.0
-            async for ev in sent_stream:
-                output_emitter.push_timed_transcript(
-                    TimedString(text=ev.token, start_time=duration)
-                )
+            try:
+                async for ev in sent_stream:
+                    output_emitter.push_timed_transcript(
+                        TimedString(text=ev.token, start_time=duration)
+                    )
 
-                if not (text := ev.token.strip()):
-                    continue
+                    if not (text := ev.token.strip()):
+                        continue
 
-                async with self._tts._wrapped_tts.synthesize(
-                    text, conn_options=self._wrapped_tts_conn_options
-                ) as tts_stream:
-                    async for audio in tts_stream:
-                        output_emitter.push(audio.frame.data.tobytes())
-                        duration += audio.frame.duration
-                    output_emitter.flush()
+                    async with self._tts._wrapped_tts.synthesize(
+                        text, conn_options=self._wrapped_tts_conn_options
+                    ) as tts_stream:
+                        async for audio in tts_stream:
+                            output_emitter.push(audio.frame.data.tobytes())
+                            duration += audio.frame.duration
+                        output_emitter.flush()
+            finally:
+                # Ensure downstream decoders are closed even on errors/timeouts
+                try:
+                    output_emitter.end_input()
+                except RuntimeError:
+                    pass
 
         tasks = [
             asyncio.create_task(_forward_input()),

@@ -76,6 +76,8 @@ class StreamBuffer:
 
     def write(self, data: bytes) -> None:
         """Write data to the buffer from a writer thread."""
+        if self._buffer.closed:
+            return
         with self._data_available:
             self._buffer.seek(0, io.SEEK_END)
             self._buffer.write(data)
