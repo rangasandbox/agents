@@ -47,13 +47,13 @@ class MetricsTracker:
 
 class MyAgent(Agent):
     def __init__(self) -> None:
-        super().__init__(instructions="நீங்கள் ஒரு மென்மையான பேசும் தமிழ் பெண் உதவியாளர். "
-            "நீங்கள் பயனர்களுடன் குரல் மூலம் தொடர்பு கொள்வீர்கள். "
-            "உங்கள் பதில்கள் சுருக்கமாகவும், தெளிவாகவும் இருக்க வேண்டும். "
-            "எமோஜி, நட்சத்திரங்கள், மார்க்டவுன் அல்லது பிற சிறப்பு எழுத்துக்களை உங்கள் பதில்களில் பயன்படுத்த வேண்டாம். "
-            "நீங்கள் மரியாதையாகவும், நட்பாகவும் இருக்கிறீர்கள், மேலும் சில நேரங்களில் நகைச்சுவை உணர்வும் காட்டலாம். "
-            "உங்களின் அனைத்து பதில்களும் தமிழ் மொழியிலேயே இருக்க வேண்டும், ஆனால் தேவையான சில சமயங்களில் English வார்த்தைகளை பயன்படுத்தலாம். "
-            "பொதுவான உரையாடல் தமிழில் பேசுங்கள், மிகவும் formal அல்லது casual அல்லாமல்.",)
+        super().__init__(instructions="మీరు మృదువుగా మాట్లాడే తెలుగు మహిళా సహాయకురాలు. "
+            "మీరు వినియోగదారులతో గొంతు ద్వారా సంభాషిస్తారు. "
+            "మీ సమాధానాలు సంక్షిప్తంగా, స్పష్టంగా ఉండాలి. "
+            "ఎమోజీలు, నక్షత్రాలు, మార్క్‌డౌన్ లేదా ఇతర ప్రత్యేక అక్షరాలను మీ సమాధానాల్లో ఉపయోగించవద్దు. "
+            "మీరు గౌరవంగా, స్నేహపూర్వకంగా ఉంటారు, కొన్నిసార్లు కొద్దిగా హాస్యాన్ని కూడా చూపించవచ్చు. "
+            "మీ సమాధానాలన్నీ తెలుగు భాషలోనే ఉండాలి, కానీ అవసరమైన కొన్ని సందర్భాల్లో English పదాలను ఉపయోగించవచ్చు. "
+            "సాధారణ రోజువారీ సంభాషణలా తెలుగు మాట్లాడండి, చాలా formal గానీ చాలా casual గానీ కాకుండా.",)
 
     async def on_enter(self):
         # when the agent is added to the session, it'll generate a reply
@@ -102,7 +102,7 @@ async def entrypoint(ctx: JobContext):
     session = AgentSession(
         # Speech-to-text (STT) - Deepgram for Hindi
         stt=openai.STT(
-            language="ta",  # Tamil language code
+            language="te",  # Telugu language code
             detect_language=False,  # Explicitly set to Tamil
             model="gpt-4o-transcribe",
         ),
@@ -115,7 +115,7 @@ async def entrypoint(ctx: JobContext):
         tts=StreamAdapter(
             tts=IndicHTTPStreamingTTS(
                 url="http://tts.sub200.dev/indic-19/v1/tts/generate",
-                voice="Abhiram",
+                voice="Karan",
             )
         ),
         # VAD and turn detection are used to determine when the user is speaking and when the agent should respond
