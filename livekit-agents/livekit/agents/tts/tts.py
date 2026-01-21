@@ -793,15 +793,9 @@ class AudioEmitter:
 
             if flush_timer is not None:
                 flush_timer.cancel()
-
-            def _flush() -> None:
-                self.flush()
-                logger.debug("flush audio emitter due to slow audio generation")
-
-            if flush_if_delayed:
-                # force flush the buffer if the audio comes slower than realtime
-                delay = sent_duration - (event_loop.time() - sent_start) - 0.02
-                flush_timer = event_loop.call_later(delay, _flush)
+            # Avoid flushes mid-stream to keep decoders from seeing truncated WAV data.
+            # Previously we scheduled a flush when generation lagged behind realtime,
+            # but that forced the decoder to restart and could break streaming WAV.
 
         def _emit_frame(frame: rtc.AudioFrame | None = None, *, is_final: bool = False) -> None:
             nonlocal last_frame, segment_ctx, timed_transcripts
